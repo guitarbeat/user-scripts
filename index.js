@@ -1,7 +1,7 @@
 import { init } from './core/controller';
 
 /**
- * Canvas Filter Tags Userscript
+ * Canvas Grading Tools Userscript
  * 
  * This userscript adds functionality to Canvas Speed Grader to enhance the grading experience:
  * - Automatically switches to horizontal view mode

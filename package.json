@@ -1,8 +1,8 @@
 {
-  "name": "canvas-filter-tags",
+  "name": "canvas-grading-tools",
   "version": "2.2.0",
-  "description": "Canvas Filter Tags userscript broken into modules",
-  "main": "dist/Canvas Filter Tags.user.js",
+  "description": "Canvas Grading Tools userscript broken into modules",
+  "main": "dist/canvas-grading-tools.user.js",
   "scripts": {
     "build": "webpack --mode production",
     "dev": "webpack --mode development --watch"
