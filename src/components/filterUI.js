@@ -1,0 +1,584 @@
+import log from '../utils/logger';
+import { getTotalPoints } from '../core/rubricData';
+import { hideAllRubricBlocks, showRubricBlocks, showAllRubricBlocks, 
+         hideAllCommentBoxes, showAllCommentBoxes } from '../utils/dom';
+import { createGradePanel } from './gradePanel';
+
+/**
+ * Creates the filter UI for rubric blocks
+ * @param {Map} tagMap - Map of tags to associated blocks
+ */
+export const createTagUI = (tagMap) => {
+  const container = document.createElement("div");
+  container.id = "rubric-filter-panel";
+
+  // Get current student name
+  const studentSelect = document.querySelector("#students_selectmenu");
+  const selectedOption = studentSelect?.querySelector("option:checked");
+  const studentName = selectedOption?.text || "Student";
+
+  // Calculate total points across all items
+  let grandTotal = 0;
+  let grandTotalGraded = 0;
+  let grandTotalBlocks = 0;
+  tagMap.forEach((blocks) => {
+    const stats = getTotalPoints(blocks);
+    grandTotal += stats.total;
+    grandTotalGraded += stats.graded;
+    grandTotalBlocks += stats.total_blocks;
+  });
+
+  Object.assign(container.style, {
+    position: "fixed",
+    top: "20px",
+    left: "20px",
+    zIndex: 99_999,
+    background: "linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)",
+    border: "none",
+    padding: "12px",
+    borderRadius: "10px",
+    boxShadow: "0 6px 16px rgba(0,0,0,0.12)",
+    fontSize: "13px",
+    fontFamily:
+      'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+    minWidth: "220px",
+    maxWidth: "260px",
+    maxHeight: "80vh",
+    overflowY: "auto",
+    transition: "all 0.3s ease",
+    backdropFilter: "blur(5px)",
+    scrollbarWidth: "thin",
+    scrollbarColor: "#d1d1d1 transparent",
+  });
+
+  // Add custom scrollbar styling for webkit browsers
+  const style = document.createElement("style");
+  style.textContent = `
+          #rubric-filter-panel::-webkit-scrollbar {
+              width: 6px;
+          }
+          #rubric-filter-panel::-webkit-scrollbar-track {
+              background: transparent;
+          }
+          #rubric-filter-panel::-webkit-scrollbar-thumb {
+              background-color: #d1d1d1;
+              border-radius: 6px;
+          }
+          #rubric-filter-panel .group-header {
+              cursor: pointer;
+              user-select: none;
+          }
+          #rubric-filter-panel .group-header:hover {
+              background: #f0f4f8;
+              border-radius: 4px;
+          }
+      `;
+  document.head.appendChild(style);
+
+  // Create header with student name and scoring
+  const header = document.createElement("div");
+  Object.assign(header.style, {
+    display: "flex",
+    flexDirection: "column",
+    marginBottom: "10px",
+    borderBottom: "1px solid #e0e0e0",
+    paddingBottom: "10px",
+  });
+
+  const titleRow = document.createElement("div");
+  Object.assign(titleRow.style, {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+  });
+
+  const title = document.createElement("div");
+  title.innerHTML =
+    '<span style="font-weight:bold;font-size:15px;">🧩 Rubric Filter</span>';
+  titleRow.appendChild(title);
+
+  const score = document.createElement("div");
+  score.innerHTML = `<span style="color:#0374B5;font-weight:bold;font-size:15px">${grandTotal}pts</span>`;
+  titleRow.appendChild(score);
+
+  header.appendChild(titleRow);
+
+  const studentInfo = document.createElement("div");
+  Object.assign(studentInfo.style, {
+    display: "flex",
+    justifyContent: "space-between",
+    fontSize: "12px",
+    color: "#666",
+    marginTop: "6px",
+  });
+
+  const nameDiv = document.createElement("div");
+  nameDiv.innerHTML = `<span style="color:#333">👤 ${studentName}</span>`;
+  studentInfo.appendChild(nameDiv);
+
+  const progressDiv = document.createElement("div");
+  progressDiv.textContent = `${grandTotalGraded}/${grandTotalBlocks} graded`;
+  studentInfo.appendChild(progressDiv);
+
+  header.appendChild(studentInfo);
+
+  // Add progress bar
+  const progressBarContainer = document.createElement("div");
+  Object.assign(progressBarContainer.style, {
+    height: "4px",
+    background: "#eee",
+    borderRadius: "2px",
+    marginTop: "8px",
+    overflow: "hidden",
+  });
+
+  const progressBar = document.createElement("div");
+  const percentage =
+    grandTotalBlocks > 0 ? (grandTotalGraded / grandTotalBlocks) * 100 : 0;
+  Object.assign(progressBar.style, {
+    height: "100%",
+    width: `${percentage}%`,
+    background: "#0374B5",
+    borderRadius: "2px",
+    transition: "width 0.3s ease",
+  });
+
+  progressBarContainer.appendChild(progressBar);
+  header.appendChild(progressBarContainer);
+
+  container.appendChild(header);
+
+  const contentWrapper = document.createElement("div");
+  Object.assign(contentWrapper.style, {
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+  });
+  container.appendChild(contentWrapper);
+
+  const grouped = new Map();
+  const expandedGroups = {};
+
+  // Group by "Question 1", "Question 2", etc.
+  tagMap.forEach((blocks, tag) => {
+    // Try to match different question format patterns
+    let match;
+    let groupKey;
+    
+    // First check if any blocks in this tag have section information
+    if (blocks.length > 0 && window.rubricData) {
+      const block = blocks[0];
+      const rubricItem = window.rubricData.find(
+        (data) => data.element === block
+      );
+      
+      if (rubricItem?.section) {
+        groupKey = rubricItem.section;
+      }
+    }
+    
+    // If no section found, fall back to pattern matching
+    if (!groupKey) {
+      // Match Q1, Question 1, etc.
+      match = tag.match(/^Q(\d+)|Question\s+(\d+)/i);
+      
+      if (!match) {
+        // Match numbered formats like "1. Title" or "#1"
+        match = tag.match(/^(\d+)[.:]|#(\d+)/);
+      }
+      
+      if (!match) {
+        // Match "Part X" format - improved to handle multi-character part identifiers
+        match = tag.match(/Part\s+([a-z0-9]+[a-z]?)/i);
+      }
+      
+      if (match) {
+        // Extract the question number, safely accessing match groups
+        const number = match[1] || match[2] || match[3] || "";
+        groupKey = `Question ${number}`;
+      } else {
+        // Check if this tag belongs to a section with points
+        const pointsMatch = tag.match(/\((\d+)\s*Points?\)/i);
+        if (pointsMatch) {
+          groupKey = "Scoring Sections";
+        } else {
+          groupKey = "Other";
+        }
+      }
+    }
+
+    if (!grouped.has(groupKey)) {
+      grouped.set(groupKey, []);
+    }
+    grouped.get(groupKey).push({ tag, blocks });
+  });
+
+  const buttons = [];
+  const allGroups = [];
+
+  grouped.forEach((items, groupTitle) => {
+    // Calculate group total points
+    let groupTotal = 0;
+    let groupGraded = 0;
+    let groupTotalItems = 0;
+
+    items.forEach(({ blocks }) => {
+      const stats = getTotalPoints(blocks);
+      groupTotal += stats.total;
+      groupGraded += stats.graded;
+      groupTotalItems += stats.total_blocks;
+    });
+
+    // Create collapsible group container
+    const groupContainer = document.createElement("div");
+    Object.assign(groupContainer.style, {
+      marginBottom: "6px",
+      borderRadius: "6px",
+      border: "1px solid #e8e8e8",
+      overflow: "hidden",
+      background: "#fff",
+    });
+
+    // Determine if group has any graded items
+    const isFullyGraded =
+      groupGraded === groupTotalItems && groupTotalItems > 0;
+    const isPartiallyGraded =
+      groupGraded > 0 && groupGraded < groupTotalItems;
+    const statusIndicator = isFullyGraded
+      ? "🟢"
+      : isPartiallyGraded
+      ? "🟡"
+      : "🔴";
+
+    // Create group header
+    const groupHeader = document.createElement("div");
+    groupHeader.className = "group-header";
+    groupHeader.innerHTML = `
+              <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px">
+                  <div style="display:flex;align-items:center;gap:6px">
+                      <span style="color:#666;font-size:10px">${statusIndicator}</span>
+                      <span style="font-weight:600;color:#333;font-size:13px">${groupTitle}</span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:8px">
+                      <span style="color:#0374B5;font-weight:bold;font-size:13px">${groupTotal}pts</span>
+                      <span style="color:#999;font-size:10px;margin-top:1px">${groupGraded}/${groupTotalItems}</span>
+                  </div>
+              </div>
+          `;
+
+    // Default to collapsed for all groups
+    const isExpanded = false;
+    expandedGroups[groupTitle] = isExpanded;
+
+    groupContainer.appendChild(groupHeader);
+
+    // Create content area for this group
+    const groupContent = document.createElement("div");
+    Object.assign(groupContent.style, {
+      padding: "0px 8px",
+      display: isExpanded ? "block" : "none",
+      borderTop: "1px solid #f0f0f0",
+      background: "#fcfcfc",
+      maxHeight: "300px",
+      overflowY: "auto",
+    });
+
+    // Toggle functionality
+    groupHeader.addEventListener("click", () => {
+      expandedGroups[groupTitle] = !expandedGroups[groupTitle];
+      groupContent.style.display = expandedGroups[groupTitle]
+        ? "block"
+        : "none";
+    });
+
+    items.sort((a, b) => a.tag.localeCompare(b.tag)); // e.g. 1a, 1b, 1c
+
+    const buttonGroup = document.createElement("div");
+    Object.assign(buttonGroup.style, {
+      display: "flex",
+      flexDirection: "column",
+      gap: "6px",
+      padding: "8px 0",
+    });
+
+    // Get the question description from the first block in the group
+    let questionDescription = "";
+    if (items.length > 0 && items[0].blocks.length > 0 && window.rubricData) {
+      // Find matching rubric data for this block
+      const firstBlock = items[0].blocks[0];
+      const rubricItem = window.rubricData.find(
+        (data) => data.element === firstBlock
+      );
+      if (rubricItem?.description) {
+        // Extract first sentence or first 100 characters
+        let desc = rubricItem.description;
+        const firstSentenceMatch = desc.match(/^(.*?[.!?])\s/);
+        desc = firstSentenceMatch === null ? `${desc.substring(0, 97)}...` : firstSentenceMatch[1];
+        questionDescription = desc;
+      }
+    }
+
+    // Add question description if available
+    if (questionDescription) {
+      const descriptionEl = document.createElement("div");
+      Object.assign(descriptionEl.style, {
+        fontSize: "11px",
+        color: "#555",
+        padding: "6px 8px",
+        marginTop: "4px",
+        marginBottom: "6px",
+        background: "rgba(240,240,240,0.5)",
+        borderRadius: "4px",
+        borderLeft: "2px solid #ccc",
+        lineHeight: "1.4",
+      });
+      descriptionEl.textContent = questionDescription;
+      buttonGroup.appendChild(descriptionEl);
+    }
+
+    // Create an object to track active button state
+    const buttonState = {
+      activeButton: null
+    };
+
+    items.forEach(({ tag, blocks }) => {
+      // Get points for this item
+      const { total, graded, total_blocks } = getTotalPoints(blocks);
+
+      // Determine grading status icons
+      const statusEmoji =
+        graded === blocks.length ? "🟢" : graded > 0 ? "🟡" : "🔴";
+
+      const subtag = tag.replace(/Question\s+\d+\s*/, "").replace(/^Q\d+:\s*/, "");
+
+      // Get the title from rubric data for this specific block
+      let buttonTitle = subtag;
+      if (blocks.length > 0 && window.rubricData) {
+        const block = blocks[0];
+        const rubricItem = window.rubricData.find(
+          (data) => data.element === block
+        );
+        
+        if (rubricItem && rubricItem.title) {
+          // Use a shortened version of the title if it's too long
+          const fullTitle = rubricItem.title;
+          
+          // Clean up the title for display
+          let cleanTitle = fullTitle
+            .replace(/^Q\d+:\s*/, '') // Remove Q1: prefix if it exists
+            .replace(/\(\d+\s*Points?\)/i, '') // Remove points indicator
+            .trim();
+            
+            // If we're left with nothing meaningful, use the original tag
+            if (cleanTitle.length < 3) {
+              cleanTitle = subtag;
+            }
+            
+            buttonTitle = cleanTitle.length > 30
+              ? `${cleanTitle.substring(0, 27)}...`
+              : cleanTitle;
+          
+          // If the buttonTitle is still generic, try to use questionText
+          if (buttonTitle === "Other" && rubricItem.questionText && rubricItem.questionText !== "Other") {
+            const cleanText = rubricItem.questionText
+              .replace(/^Q\d+:\s*/, '')
+              .replace(/\(\d+\s*Points?\)/i, '')
+              .trim();
+            
+            buttonTitle = cleanText.length > 30
+              ? `${cleanText.substring(0, 27)}...`
+              : cleanText;
+          }
+        }
+      }
+
+      const btn = document.createElement("button");
+      btn.innerHTML = `
+                  <div style="display:flex;justify-content:space-between;align-items:center;width:100%;padding:1px 0">
+                      <div style="display:flex;align-items:center;gap:4px">
+                          <span style="color:#666;font-size:10px">${statusEmoji}</span>
+                          <span style="font-size:12px;color:#333">${buttonTitle}</span>
+                      </div>
+                      <div style="display:flex;flex-direction:column;align-items:flex-end">
+                          <span style="color:#0374B5;font-weight:${
+                            total > 0 ? "bold" : "normal"
+                          };font-size:12px">${
+        total > 0 ? `${total}pts` : ""
+      }</span>
+                          <span style="color:#999;font-size:9px">${graded}/${total_blocks}</span>
+                      </div>
+                  </div>
+              `;
+      Object.assign(btn.style, {
+        display: "block",
+        padding: "6px 8px",
+        cursor: "pointer",
+        borderRadius: "4px",
+        border: "1px solid #e9e9e9",
+        background: "#ffffff",
+        boxShadow: "0 1px 2px rgba(0,0,0,0.03)",
+        textAlign: "left",
+        width: "100%",
+        transition: "all 0.2s ease",
+      });
+
+      btn.addEventListener("mouseover", () => {
+        if (!btn.classList.contains("active")) {
+          btn.style.background = "#f0f7ff";
+          btn.style.borderColor = "#d0e3ff";
+        }
+      });
+
+      btn.addEventListener("mouseout", () => {
+        if (!btn.classList.contains("active")) {
+          btn.style.background = "#ffffff";
+          btn.style.borderColor = "#e9e9e9";
+        }
+      });
+
+      let active = false; // This will be used within the scope of the current button
+      btn.addEventListener("click", () => {
+        // Remove active state from previously active button if any
+        if (buttonState.activeButton) {
+          buttonState.activeButton.style.background = "#ffffff";
+          buttonState.activeButton.style.borderColor = "#e9e9e9";
+          buttonState.activeButton.style.boxShadow = "0 1px 2px rgba(0,0,0,0.03)";
+          buttonState.activeButton.classList.remove("active");
+        }
+        
+        hideAllRubricBlocks();
+        hideAllCommentBoxes();
+        
+        // Update active state for this button
+        active = true;
+        btn.style.background = "#e7f1ff";
+        btn.style.borderColor = "#a8c7f0";
+        btn.style.boxShadow = "0 2px 4px rgba(3, 116, 181, 0.1)";
+        btn.classList.add("active");
+        
+        // Update the reference to currently active button
+        buttonState.activeButton = btn;
+        
+        showRubricBlocks(blocks);
+        createGradePanel(blocks);
+      });
+
+      buttonGroup.appendChild(btn);
+      buttons.push(btn);
+    });
+
+    groupContent.appendChild(buttonGroup);
+    groupContainer.appendChild(groupContent);
+    contentWrapper.appendChild(groupContainer);
+    allGroups.push({
+      title: groupTitle,
+      container: groupContainer,
+      content: groupContent,
+      header: groupHeader,
+    });
+  });
+
+  // Add control buttons at the bottom
+  const controlsContainer = document.createElement("div");
+  Object.assign(controlsContainer.style, {
+    display: "flex",
+    gap: "8px",
+    marginTop: "10px",
+  });
+
+  // Show All button
+  const reset = document.createElement("button");
+  reset.innerHTML = `<span style="font-size:12px">🔍 Show All</span>`;
+  Object.assign(reset.style, {
+    flex: "1",
+    padding: "8px 0",
+    background: "linear-gradient(90deg, #0374B5 0%, #0097e6 100%)",
+    color: "white",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontWeight: "bold",
+    boxShadow: "0 2px 5px rgba(3, 116, 181, 0.2)",
+    transition: "all 0.2s ease",
+  });
+
+  reset.addEventListener("mouseover", () => {
+    reset.style.boxShadow = "0 4px 8px rgba(3, 116, 181, 0.3)";
+    reset.style.transform = "translateY(-1px)";
+  });
+
+  reset.addEventListener("mouseout", () => {
+    reset.style.boxShadow = "0 2px 5px rgba(3, 116, 181, 0.2)";
+    reset.style.transform = "translateY(0)";
+  });
+
+  reset.addEventListener("click", () => {
+    showAllRubricBlocks();
+    showAllCommentBoxes();
+    buttons.forEach((b) => {
+      b.style.background = "#ffffff";
+      b.style.borderColor = "#e9e9e9";
+      b.style.boxShadow = "0 1px 2px rgba(0,0,0,0.03)";
+      b.classList.remove("active");
+    });
+  });
+
+  // Toggle expand/collapse all
+  const toggleAll = document.createElement("button");
+  toggleAll.innerHTML = `<span style="font-size:12px">🔼 Expand All</span>`;
+  Object.assign(toggleAll.style, {
+    flex: "1",
+    padding: "8px 0",
+    background: "#f1f1f1",
+    color: "#333",
+    border: "none",
+    borderRadius: "6px",
+    cursor: "pointer",
+    fontWeight: "bold",
+    transition: "all 0.2s ease",
+  });
+
+  let allExpanded = false; // Start with all collapsed
+
+  toggleAll.addEventListener("click", () => {
+    allExpanded = !allExpanded;
+    toggleAll.innerHTML = `<span style="font-size:12px">${
+      allExpanded ? "🔽 Collapse All" : "🔼 Expand All"
+    }</span>`;
+
+    allGroups.forEach((group) => {
+      expandedGroups[group.title] = allExpanded;
+      group.content.style.display = allExpanded ? "block" : "none";
+    });
+  });
+
+  controlsContainer.appendChild(reset);
+  controlsContainer.appendChild(toggleAll);
+  contentWrapper.appendChild(controlsContainer);
+
+  document.body.appendChild(container);
+
+  // Make container draggable
+  let isDragging = false;
+  let offsetX;
+  let offsetY;
+
+  header.style.cursor = "move";
+  header.addEventListener("mousedown", (e) => {
+    isDragging = true;
+    offsetX = e.clientX - container.getBoundingClientRect().left;
+    offsetY = e.clientY - container.getBoundingClientRect().top;
+  });
+
+  document.addEventListener("mousemove", (e) => {
+    if (!isDragging) {
+      return;
+    }
+    container.style.left = `${e.clientX - offsetX}px`;
+    container.style.top = `${e.clientY - offsetY}px`;
+  });
+
+  document.addEventListener("mouseup", () => {
+    isDragging = false;
+  });
+}; 
