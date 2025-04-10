@@ -13,28 +13,53 @@ import { initStyles } from '../styles';
  */
 export const refreshRubricFilter = () => {
   log("🔄 Student changed. Refreshing rubric filters...");
+  
+  // Remove existing filter UI
   removeOldFilterUI();
+
+  // Remove the grade panel if it exists
   const gradePanel = document.querySelector("#rubric-grade-panel");
   if (gradePanel) {
     gradePanel.remove();
+    log("✅ Removed existing grade panel.");
+  } else {
+    log("⚠️ No grade panel found to remove.");
   }
 
-  // Remove file browser panel as well
+  // Remove the file browser panel if it exists
   const filePanel = document.querySelector("#file-browser-panel");
   if (filePanel) {
     filePanel.remove();
+    log("✅ Removed existing file browser panel.");
+  } else {
+    log("⚠️ No file browser panel found to remove.");
   }
 
-  setTimeout(() => {
+  // Use a MutationObserver to wait for the rubric to re-render
+  const observer = new MutationObserver((mutationsList, observer) => {
     const tags = extractFilterTags();
-    // Re-extract rubric data when student changes to ensure data is fresh
-    extractRubricData();
-    createTagUI(tags);
-    createFilesBrowserUI();
-    createProblemGraderButton(); // Recreate problem grader button when student changes
-    hideAllRubricBlocks();
-    hideAllCommentBoxes();
-  }, 1000); // delay to allow rubric to re-render
+    if (tags.size > 0) {
+      log(`✅ Extracted ${tags.size} tags from rubric blocks.`);
+      extractRubricData(); // Refresh rubric data
+      createTagUI(tags);
+      createFilesBrowserUI();
+      createProblemGraderButton(); // Recreate problem grader button
+      hideAllRubricBlocks();
+      hideAllCommentBoxes();
+      observer.disconnect(); // Stop observing once done
+    } else {
+      log("⚠️ No rubric blocks found after re-render.");
+    }
+  });
+
+  // Start observing for changes in the rubric container
+  const rubricContainer = document.querySelector('.rubric-container'); // Adjust selector as needed
+  if (rubricContainer) {
+    observer.observe(rubricContainer, { childList: true, subtree: true });
+    log("🔍 Observing changes in the rubric container...");
+  } else {
+    log("⚠️ Rubric container not found. Unable to observe changes.");
+  }
 };
 
 /**

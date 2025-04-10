@@ -34,6 +34,10 @@ export const navigateToStudent = (studentId) => {
  * Fetch all problem data for all students (comprehensive scan)
  */
 export const fetchAllStudentData = async (callback, extractQuestionBlocks, getSelectedRatingForBlock, getSubmittedFiles, checkRequiredFiles) => {
+  const DELAY_BEFORE_NAVIGATION = 100; // Delay before navigating to the next student
+  const DELAY_AFTER_NAVIGATION = 100; // Delay after navigation to allow UI update
+  const DELAY_BETWEEN_STUDENTS = 10; // Delay between processing each student
+
   const students = Array.from(document.querySelector('#students_selectmenu').querySelectorAll('option')).map(option => ({
     id: option.value,
     name: option.textContent.trim(),
@@ -162,8 +166,8 @@ export const fetchAllStudentData = async (callback, extractQuestionBlocks, getSe
       statusOverlay.querySelector('progress').value = processedStudents;
 
       // Process next student with reduced delay
-      setTimeout(() => processNextStudent(index + 1), 50);
-    }, 400);
+      setTimeout(() => processNextStudent(index + 1), DELAY_BETWEEN_STUDENTS);
+    }, DELAY_BEFORE_NAVIGATION);
   };
 
   // Start processing from the first student
@@ -172,5 +176,5 @@ export const fetchAllStudentData = async (callback, extractQuestionBlocks, getSe
   // At the end, navigate back to the original student
   setTimeout(() => {
     navigateToStudent(currentStudentId);
-  }, 500);
+  }, DELAY_AFTER_NAVIGATION);
 }; 

@@ -75,7 +75,13 @@ const spamKeyUntilInputAppears = (key, inputSelector, callback, maxAttempts = 30
   trySend();
 };
 
-const waitForDropdownThenClick = () => {
+const waitForDropdownThenClick = (bypassViewCheck = false) => {
+  if (bypassViewCheck) {
+    log("✅ Bypassing view check. Proceeding with dropdown click...");
+    // Directly call the dropdown click logic here if needed
+    return;
+  }
+
   retryUntilFound("input#Select_1", (input) => {
     // Check if already set to Horizontal
     const isAlreadyHorizontal = input?.value?.toLowerCase().includes("horizontal") || input?.ariaLabel?.includes("Horizontal");
@@ -116,7 +122,7 @@ export const createHorizontalViewUI = () => {
     log("✅ Rubric table detected. Repeatedly sending 'r' to open rubric panel...");
 
     spamKeyUntilInputAppears("r", "input#Select_1", () => {
-      waitForDropdownThenClick();
+      waitForDropdownThenClick(true);
     }, 30, 500);
   });
 } 

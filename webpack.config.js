@@ -10,11 +10,12 @@ const pkg = require('./package.json');
 const userscriptBanner = `
 // ==UserScript==
 // @name         Canvas Grading Tools
-// @namespace    https://github.com/${pkg.author}/canvas-tools
+// @namespace    http://tampermonkey.net/
 // @version      ${pkg.version}
 // @description  ${pkg.description}
-// @author       ${pkg.author}
+// @author       ${pkg.author || 'User'}
 // @match        https://*.instructure.com/courses/*/gradebook/speed_grader*
+// @icon         https://www.google.com/s2/favicons?sz=64&domain=instructure.com
 // @grant        none
 // ==/UserScript==
 `.trim();
@@ -58,7 +59,7 @@ module.exports = (env, argv) => {
         new TerserPlugin({
           terserOptions: {
             format: {
-              comments: false,
+              comments: /==\/?UserScript==|@|==\/?UserStyle==/i,
             },
           },
           extractComments: false,
