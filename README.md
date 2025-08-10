@@ -1,63 +1,67 @@
 # Canvas Grading Tools
 
-A collection of userscripts that enhance the Canvas Speed Grader experience, making it easier to grade assignments with complex rubrics and multiple students.
+A userscript that enhances the Canvas SpeedGrader experience to make grading faster and more consistent.
+
+- **Canvas Filter Tags**: Hide/show rubric blocks, filter by question/section, quick grading panel, submitted files browser, hidden comment boxes, freeze submission details, automatic horizontal view switching
+- **Problem Grader (All Students)**: Grade one problem across all students, track progress, navigate quickly, and see a comprehensive multi-student view
+
+## Table of Contents
+- [Features](#features)
+- [Quick Install](#quick-install)
+- [Usage](#usage)
+- [Development](#development)
+- [Project Structure](#project-structure)
+- [Docs](#docs)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Features
+- **Rubric Block Filtering**: Reduce visual clutter by hiding blocks until needed
+- **Question/Section Filtering**: Focus the rubric on what you are grading right now
+- **Quick Grading Panel**: Grade specific criteria quickly
+- **Submitted Files Browser**: Browse/view student submissions more easily
+- **Hidden Comment Boxes**: Cleaner UI with comments shown on demand
+- **Freeze Submission Details**: Keep important submission info in view
+- **Problem Grader**: Grade the same problem across all students for consistency
+- **Student Overview & Analytics**: Track problem-specific progress and required files
 
-### Canvas Filter Tags
-- **Rubric Block Filtering**: Hide/show rubric blocks by default to reduce visual clutter
-- **Question/Section Filtering**: Filter the rubric to focus on specific questions or sections
-- **Quick Grading Panel**: Grade specific criteria more efficiently
-- **Submitted Files Browser**: Easily browse and view submitted files
-- **Hidden Comment Boxes**: Hide comment boxes by default for a cleaner interface
-- **Freeze Submission Details**: Lock the submission details panel in place for easier scrolling
+## Quick Install
+1. Install a userscript manager: Tampermonkey (recommended) or Greasemonkey
+2. Build this project: `npm install && npm run build`
+3. Open `dist/canvas-grading-tools.user.js` and copy its contents
+4. In your userscript manager, create a new script and paste the contents
+5. Save, then open Canvas SpeedGrader and refresh
 
-### Problem Grader (All Students)
-- **Grade By Problem**: Focus on grading one problem across all students for consistency
-- **Student Overview**: Track grading progress for specific problems
-- **File Submission Analytics**: View which students have submitted required files
-- **Quick Navigation**: Jump directly to a student's submission for a specific problem
-- **Comprehensive View**: See all problems across all students in one view
-
-## Installation
-
-1. Install a userscript manager like Tampermonkey or Greasemonkey in your browser
-2. Build the script by running `npm run build`
-3. Copy the contents of the `dist/canvas-grading-tools.user.js` file
-4. Create a new userscript in your userscript manager and paste the contents
-5. Save the script and refresh your Canvas Speed Grader page
+## Usage
+- This userscript runs on Canvas SpeedGrader pages that match:
+  - `https://*.instructure.com/courses/*/gradebook/speed_grader*`
+- Open SpeedGrader for an assignment. The enhancements load automatically after the page loads.
 
 ## Development
-
-### Requirements
-- Node.js 14+
-- npm or yarn
-
-### Setup
-```bash
-# Install dependencies
-npm install
-
-# Build the script
-npm run build
-
-# Watch for changes during development
-npm run dev
-```
+- **Requirements**: Node.js 14+ and npm or yarn
+- **Install**: `npm install`
+- **Watch / Dev**: `npm run dev`
+- **Build**: `npm run build` → outputs `dist/canvas-grading-tools.user.js`
 
 ## Project Structure
 ```
 src/
 ├── components/         # UI components
-├── core/               # Core logic and data processing
-├── utils/              # Utility functions
-├── styles/             # CSS stylesheets
-└── index.js            # Main entry point
+├── core/               # Core logic and controller
+├── utils/              # Utility helpers
+├── styles/             # CSS
+└── index.js            # Userscript entry
 ```
 
+## Docs
+See the `docs/` folder for more details:
+- `docs/features.md`
+- `docs/installation.md`
+- `docs/development.md`
+- `docs/troubleshooting.md`
+
 ## Contributing
-Contributions are welcome! Please feel free to submit a Pull Request.
+Contributions are welcome! See `CONTRIBUTING.md` for guidelines.
 
 ## License
-
-This project is licensed under the ISC License. 
+ISC. See `LICENSE` or `package.json` for details. 
